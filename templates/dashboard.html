@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Network Metrics Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        html, body {
+            height: 100%;
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+        }
+        canvas {
+            width: 80vw;  /* Adjust to ensure it's not too large */
+            height: 60vh;  /* Adjust to ensure it's not too large */
+        }
+    </style>
+</head>
+<body>
+    <h1>Network Metrics Dashboard</h1>
+    <canvas id="metricsChart"></canvas>
+    <script>
+        function fetchData() {
+            fetch('/metrics')
+                .then(response => response.json())
+                .then(data => {
+                    console.log("Received data:", data);  // Log the received data for debugging
+    
+                    // Log each item in the array
+                    data.forEach((item, index) => {
+                        console.log(`Item ${index}:`, item);
+                    });
+    
+                    // Ensure that data is correctly formatted before mapping
+                    if (data && Array.isArray(data) && data.length > 0) {
+                        const labels = data.map(item => {
+                            if (item && item.timestamp) {
+                                return new Date(item.timestamp).toLocaleTimeString();
+                            } else {
+                                console.error('Invalid item found:', item);
+                                return "";
+                            }
+                        });
+    
+                        const latency = data.map(item => item.latency || 0);  // Extract latency values
+                        const packetLoss = data.map(item => item.packet_loss || 0);  // Extract packet loss values
+    
+                        // Check if Chart object exists
+                        if (window.metricsChart && window.metricsChart.data) {
+                            // Update existing chart data
+                            window.metricsChart.data.labels = labels;
+                            window.metricsChart.data.datasets[0].data = latency;
+                            window.metricsChart.data.datasets[1].data = packetLoss;
+                            window.metricsChart.update();
+                        } else {
+                            // Create a new chart if it doesn't exist
+                            const ctx = document.getElementById('metricsChart').getContext('2d');
+                            window.metricsChart = new Chart(ctx, {
+                                type: 'line',
+                                data: {
+                                    labels: labels,
+                                    datasets: [{
+                                        label: 'Latency (ms)',
+                                        data: latency,
+                                        borderColor: 'rgb(75, 192, 192)',
+                                        fill: false
+                                    }, {
+                                        label: 'Packet Loss (%)',
+                                        data: packetLoss,
+                                        borderColor: 'rgb(255, 99, 132)',
+                                        fill: false
+                                    }]
+                                },
+                                options: {
+                                    scales: {
+                                        x: {
+                                            type: 'category',  // Use category for simple labels
+                                            title: {
+                                                display: true,
+                                                text: 'Time'
+                                            }
+                                        },
+                                        y: {
+                                            beginAtZero: true,
+                                            title: {
+                                                display: true,
+                                                text: 'Values'
+                                            }
+                                        }
+                                    },
+                                    responsive: true,
+                                    maintainAspectRatio: false
+                                }
+                            });
+                        }
+                    } else {
+                        console.error('Invalid data format received:', data);
+                    }
+                })
+                .catch(error => console.error('Failed to fetch data:', error));
+        }
+    
+        document.addEventListener('DOMContentLoaded', function() {
+            fetchData();
+            setInterval(fetchData, 5000);  // Fetch data every 5 seconds
+        });
+    </script>
+</body>
+</html>
